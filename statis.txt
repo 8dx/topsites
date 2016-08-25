@@ -1,0 +1,5 @@
+Standard Deviation: 1244049.4090 (1214.89 in KB)
+Variance: 1547658932126.0383 (1511385675.90 in KB)
+Mode Value: is multimodal
+Median Value: 362293.0000 (353.80 in KB)
+Mean (Average) Value: 899763.0400 (878.67 in KB)

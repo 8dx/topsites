@@ -1,0 +1,104 @@
+#!/usr/bin/env perl
+
+#analyze file sizes of different websites
+#also keep in mind order based on sitelist file
+
+use feature 'say';
+my @methods = qw|bars lines points linespoints mixed pie|;
+use Module::Load;
+use Statistics::Basic qw|:all|;
+map {
+	load "GD::Graph::$_";
+} @methods;
+use Data::Dumper;
+
+my @sites = get_sites();
+my @sizes;
+for my $site (@sites) {
+	my $size =    -s "pdfs/" . $site . ".pdf";  #to have this silly little layout serendipity
+	push @sizes, $size;
+} 
+
+my @bytes = @sizes;
+
+map { $_ /= 1024 } @sizes;
+
+my @data = (\@sites, \@sizes); #first level is site name, second is size
+my $width = 800;
+my $height = 600;
+
+for my $method (@methods) {
+	my $class = "GD::Graph::$method";
+	my $graph = $class->new($width,$height);
+	$graph->set_title_font("/usr/share/fonts/truetype/larabie/kredit1.ttf",24);
+	$graph->set_text_clr("black");
+
+	$graph->set(
+		x_label	    => 'Site',
+		cycle_clrs  => 1,
+		shadow_depth=>  2,
+		#logo 	    => "/home/oz/shub.jpeg",
+		#logo_position=> "LW",
+		#logo_resize =>  0.8,
+		show_values => 1,
+		dclrs => [qw|pink cyan red green blue orange marine dgray|],
+		suppress_angle => 5,
+		y_label     => 'PDF Size (in KB)',
+		title       => 'Size of Index Page as PDF for Top 25 Site List',
+		bar_width   =>  24,
+		bar_spacing =>  8,
+		x_labels_vertical => 1,
+		values_format => \&pretty_numbers
+	) or warn $graph->error;
+	sub pretty_numbers {
+		my $value = shift;
+		return sprintf("%.09f",$value);
+	}
+	my $image = $graph->plot(\@data) or die $graph->error;
+	open my $png, ">", "reports/$method.png";
+	print $png $image->png;
+	close $png;
+	say "wrote reports/$method.png";
+
+
+}
+
+gen_statistics(\@bytes);
+say "check statis.txt 4 other shits";
+sub get_sites { #get list of sites, also sorted properly 
+		#by virtue of layout (hax tbh)
+	open my $f, "<", "sitelist";
+	my @ret = <$f>;
+	map chomp, @ret;
+	return @ret;
+}
+
+sub gen_statistics {
+	my @sample = shift;
+	my @out;
+	my $stats = {
+		mean   => "Mean (Average) Value",
+		median => "Median Value",
+		variance => "Variance",
+		mode	=> "Mode Value",
+		stddev  => "Standard Deviation",
+		};
+	for my $key (keys %$stats) {
+		my $desc = $stats->{$key};
+		my $val = $key->(@sample);
+		my $str;
+		if($key eq 'mode' and $val->is_multimodal) {
+			$str = sprintf("%s: is multimodal", $desc);
+		} else {
+			$str = sprintf("%s: %.04f (%.02f in KB)", $desc, $val, $val/1024)
+		}
+		push @out, $str;
+	}
+	unlink "statis.txt";
+	open my $stf, ">", "statis.txt";
+	map {
+		print $stf $_ . "\n";
+	} @out;
+	close $f;
+	return @out;
+}
